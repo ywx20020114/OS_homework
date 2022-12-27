@@ -1,0 +1,66 @@
+ SYSCALL_DEFINE0(copy_and_show_processes_info,char*,buf,char*,source,char*,target)  
+ {  
+
+     struct task_struct *p;    // 进程结构体
+     struct file* src_file = NULL;    //源地址
+     struct file* tgt_file = NULL;    // 目的地址
+     int sum = 0;    // 总进程数
+     int value;  
+     int count = 0;  
+     loff_t src_pos;  
+     loff_t tgt_pos;  
+     char buffer[128];    // 字符指针，存储进程信息
+     char* BUF = kmalloc(sizeof(char)*18000,GFP_ATOMIC);  
+     char* src = kmalloc(sizeof(char)*30,GFP_ATOMIC);  
+     char* tgt = kmalloc(sizeof(char)*30,GFP_ATOMIC);  
+     char temp[45];  
+     int offset = 0;  
+     int i;  
+     p = &init_task;  
+	// 获取进程信息到缓冲区buffer中
+     for_each_process(p)  
+     {  
+         memset(temp,'\0',45);  
+         sprintf(temp, "%-20s %6d %4c 2013774\n",p->comm,p->pid,task_state_to_char(p));  
+         i = 0;  
+         while(temp[i]!='\0'){  
+                 BUF[offset]=temp[i];  
+                 i++;  
+                 offset++;  
+         }  
+         sum += 1;  
+     }  
+     memset(temp,'\0',45);  
+     sprintf(temp, "the number of processes is %d 2013774\n", sum);  
+     i = 0;  
+     while(temp[i]!='\0'){  
+          BUF[offset]=temp[i];  
+          i++;  
+          offset++;  
+     }  
+     // 进行拷贝到用户空间  
+     value = copy_to_user(buf,BUF,offset);  
+     value = copy_from_user(src,source,30);  
+     value = copy_from_user(tgt,target,30);  
+     printk("%s to %s 2013774",src,tgt);  
+     src_file = filp_open(src, O_RDWR | O_APPEND | O_CREAT, 0644);  
+     tgt_file = filp_open(tgt, O_RDWR | O_APPEND | O_CREAT, 0644);  
+     if (IS_ERR(src_file)) {  
+         printk("fail to open file 2013774");  
+         return 0;  
+     }  
+     if (IS_ERR(tgt_file)) {  
+         printk("fail to open file 2013774");  
+         return 0;  
+     }  
+     src_pos = src_file->f_pos;  
+     tgt_pos = tgt_file->f_pos;  
+     while((count = kernel_read(src_file,buffer,128,&src_pos))>0) 
+     {  
+            kernel_write(tgt_file,buffer,count,&tgt_pos);  
+     }  
+     filp_close(src_file,NULL);  
+     filp_close(tgt_file,NULL);  
+     kfree(BUF);  
+     return 0;  
+} 
